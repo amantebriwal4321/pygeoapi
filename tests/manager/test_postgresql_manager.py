@@ -186,3 +186,29 @@ def test_job_sync_hello_world(api_, config):
     out_json = json.loads(response)
     assert out_json["code"] == "InvalidParameterValue"
     assert out_json["description"] == job_id
+
+
+def test_get_jobs_limit_offset(api_):
+    process_id = "hello-world"
+    job_ids = []
+    for _ in range(3):
+        req = _create_execute_request("World", "Hello", api_.locales)
+        headers, http_status, _ = processes_api.execute_process(
+            api_, req, process_id)
+        assert http_status == 200
+        job_ids.append(headers['Location'].split('/')[-1])
+
+    all_jobs = api_.manager.get_jobs()
+    total = all_jobs['numberMatched']
+    assert total >= 3
+
+    jobs = api_.manager.get_jobs(limit=2)
+    assert len(jobs['jobs']) == 2
+    assert jobs['numberMatched'] == total
+
+    jobs = api_.manager.get_jobs(limit=2, offset=total - 1)
+    assert len(jobs['jobs']) == 1
+    assert jobs['numberMatched'] == total
+
+    for job_id in job_ids:
+        api_.manager.delete_job(job_id)
